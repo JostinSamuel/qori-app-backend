@@ -1,0 +1,26 @@
+# 1. Etapa de Construcción (Builder)
+# Usamos una imagen que ya tiene Maven y Java 21
+# Esto soluciona tu problema de versión local porque Docker usa su propio Java
+FROM maven:3.9.6-eclipse-temurin-21 AS build
+WORKDIR /workspace
+
+# Copiamos los archivos del proyecto
+COPY pom.xml ./
+COPY src/ ./src/
+
+# Compilamos dentro del contenedor (ya no necesitas hacerlo en tu PC)
+RUN mvn package -DskipTests
+
+# 2. Etapa de Ejecución (Runner)
+# Usamos una imagen ligera solo con Java para correr la app
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+
+# Copiamos lo que generó la etapa anterior (build) desde la carpeta target
+COPY --from=build /workspace/target/quarkus-app/lib/ /app/lib/
+COPY --from=build /workspace/target/quarkus-app/*.jar /app/
+COPY --from=build /workspace/target/quarkus-app/app/ /app/app/
+COPY --from=build /workspace/target/quarkus-app/quarkus/ /app/quarkus/
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/quarkus-run.jar"]
